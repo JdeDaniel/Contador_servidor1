@@ -45,11 +45,25 @@ public class RPCClient {
                         break;
                     }
 
-                    Thread.sleep(7000); // Espera medio segundo
+                    Thread.sleep(7000); // Espera
                 } catch (Exception e) {
-                    // Si el servidor deja de responder o lanza error, salimos del ciclo
-                    System.out.println("Servidor dejó de responder. Fin de comunicación.");
-                    break;
+                    // Capturamos excepciones lanzadas por el servidor
+                    String mensaje = e.getMessage();
+                    
+                    if (mensaje != null && mensaje.contains("Petición ignorada")) {
+                        // Solo ignorar la petición, esperar antes de intentar de nuevo
+                        System.out.println("Servidor ignoró la petición por doble llamada consecutiva. Reintentando...");
+                        Thread.sleep(2000); // Espera breve antes de reintentar
+                        continue; // Saltar a la siguiente iteración
+                    }
+
+                    if (mensaje != null && mensaje.contains("Servidor dejará de aceptar peticiones")) {
+                        System.out.println("Servidor alcanzó límite de 100. Fin de comunicación.");
+                    } else {
+                        System.out.println("Error al comunicarse con el servidor: " + mensaje);
+                    }
+
+                    break; // Salir del ciclo si hay error crítico
                 }
             }
 
