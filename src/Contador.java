@@ -1,109 +1,4 @@
-//Contador.java
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
-
-public class Contador {
-    private static final int MAX = 10;                         // Límite para pruebas
-    private static final AtomicInteger contador = new AtomicInteger(0);
-    private static final ReentrantLock SERIAL = new ReentrantLock(true);
-
-    private static final AtomicInteger secuencialNombre = new AtomicInteger(0);
-    private static final Map<String, Cliente> clientes = new ConcurrentHashMap<>();
-    private static final List<String> registroGlobal = new CopyOnWriteArrayList<>();
-
-    private static volatile String ultimoId = null;            // Para bloquear doble turno
-    private static volatile boolean detenerServidor = false;
-
-    private static class Cliente {
-        final String id;
-        final String nombre;
-        final List<Integer> valores = new CopyOnWriteArrayList<>();
-        final AtomicInteger total = new AtomicInteger(0);
-        Cliente(String id, String nombre) { this.id=id; this.nombre=nombre; }
-    }
-
-    // Registrar o reconectar: el cliente envía su id local
-    public String registrarCliente(String idCliente) {
-        return clientes.computeIfAbsent(idCliente, id -> {
-            String nombre = "Cliente" + secuencialNombre.incrementAndGet();
-            System.out.println("Registrado/reconectado: " + nombre + " (id=" + id + ")");
-            return new Cliente(id, nombre);
-        }).nombre;
-    }
-
-    // Incrementar contador. Devuelve -1 si intentó doble turno.
-    public int incrementar(String idCliente) throws Exception {
-        SERIAL.lock();
-        try {
-            if (contador.get() >= MAX) {
-                detenerServidor = true;
-                throw new Exception("Contador alcanzó " + MAX + ". Servidor dejará de aceptar peticiones");
-            }
-
-            Cliente c = clientes.get(idCliente);
-            if (c == null) throw new Exception("Cliente no registrado");
-
-            if (idCliente.equals(ultimoId)) {
-                System.out.println("Doble turno de " + c.nombre + " ignorado.");
-                return -1; // Tu cliente ya maneja -1
-            }
-
-            // Simular trabajo
-            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
-
-            int v = contador.incrementAndGet();
-            c.valores.add(v);
-            c.total.incrementAndGet();
-            ultimoId = idCliente;
-
-            registroGlobal.add(c.nombre + " -> " + v);
-            System.out.println(c.nombre + " incrementó a " + v);
-
-            if (v >= MAX) detenerServidor = true;
-            return v;
-        } finally {
-            SERIAL.unlock();
-        }
-    }
-
-    // Consultas RPC
-    public int obtenerContadorCliente(String idCliente) throws Exception {
-        Cliente c = clientes.get(idCliente);
-        if (c == null) throw new Exception("Cliente no registrado");
-        return c.total.get();
-    }
-
-    public List<Integer> historialPorCliente(String idCliente) throws Exception {
-        Cliente c = clientes.get(idCliente);
-        if (c == null) throw new Exception("Cliente no registrado");
-        return new ArrayList<>(c.valores);
-    }
-
-    public List<String> obtenerRegistroGlobal() {               // opcional por RPC
-        return new ArrayList<>(registroGlobal);
-    }
-
-    // Para el lazo de apagado del servidor
-    public static boolean debeDetenerServidor() { return detenerServidor; }
-
-    // Snapshot para imprimir al final
-    public static Map<String, List<Integer>> snapshotHistorialPorCliente() {
-        Map<String, List<Integer>> out = new LinkedHashMap<>();
-        // Ordenar por nombre para salida estable
-        List<Cliente> lista = new ArrayList<>(clientes.values());
-        lista.sort(Comparator.comparing(c -> c.nombre));
-        for (Cliente c : lista) out.put(c.nombre, new ArrayList<>(c.valores));
-        return out;
-    }
-
-    public static List<String> snapshotRegistroGlobal() {
-        return new ArrayList<>(registroGlobal);
-    }
-}
-
-/*import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -114,8 +9,8 @@ public class Contador {
     private static List<String> registro = new ArrayList<>();
     private static boolean detenerServidor = false;
 
-    // Guardamos una lista de mensajes para cada cliente
     private static Map<String, List<String>> mensajesClientes = new HashMap<>();
+    private static Map<String, List<Integer>> valoresPorCliente = new HashMap<>(); // Valores recibidos por cliente
 
     private static final int LIMITE_CONTADOR = 10;
 
@@ -124,9 +19,10 @@ public class Contador {
         if (!contadoresClientes.containsKey(idCliente)) {
             contadoresClientes.put(idCliente, 0);
             mensajesClientes.put(idCliente, new ArrayList<>());
+            valoresPorCliente.put(idCliente, new ArrayList<>()); // Iniciar lista de valores
             System.out.println("Nuevo cliente registrado: " + idCliente);
         } else {
-            System.out.println("Cliente reconectado: " + idCliente + " (mantiene su estado)");
+            System.out.println("Cliente reconectado: " + idCliente + " (mantiene su estado y su historial de valores)");
         }
 
         // Si ya se había detenido el servidor, notificar al reconectado
@@ -173,6 +69,10 @@ public class Contador {
         int nuevoValor = contadorGlobal.incrementAndGet();
         contadoresClientes.put(cliente, contadoresClientes.getOrDefault(cliente, 0) + 1);
         registro.add(cliente + " -> " + nuevoValor);
+
+        // Registrar el valor recibido por este cliente
+        valoresPorCliente.computeIfAbsent(cliente, k -> new ArrayList<>()).add(nuevoValor);
+
         System.out.println("Cliente " + cliente + " incrementó el contador global a " + nuevoValor);
 
         // Si se alcanzó el límite justo en este incremento
@@ -182,6 +82,11 @@ public class Contador {
         }
 
         return nuevoValor;
+    }
+
+    // Devolver todos los valores que ha recibido este cliente de manera historica
+    public synchronized List<Integer> obtenerValoresCliente(String cliente) {
+        return new ArrayList<>(valoresPorCliente.getOrDefault(cliente, new ArrayList<>()));
     }
 
     // Notificar mensaje a todos los clientes registrados
@@ -213,4 +118,3 @@ public class Contador {
         return new CopyOnWriteArrayList<>(registro);
     }
 }
-    */
