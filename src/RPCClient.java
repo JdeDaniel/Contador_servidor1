@@ -3,7 +3,7 @@ import org.apache.xmlrpc.client.XmlRpcClientConfigImpl; // Importa la clase para
 
 import java.net.URI;      // Importa la clase URI que representa un identificador uniforme de recursos, útil para definir la dirección del servidor
 import java.net.URL;   // Importa la clase URL que representa la dirección a la cual el cliente se conectará
-import java.util.Arrays;    // Importa la clase Arrays para trabajar con arreglos, útil para pasar parámetros o manipular datos
+//import java.util.Arrays;    // Importa la clase Arrays para trabajar con arreglos, útil para pasar parámetros o manipular datos
 
 
 public class RPCClient {
