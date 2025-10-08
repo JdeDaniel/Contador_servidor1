@@ -1,79 +1,74 @@
-import org.apache.xmlrpc.client.XmlRpcClient;   // Importa la clase que permite crear un cliente XML-RPC para enviar peticiones al servidor
-import org.apache.xmlrpc.client.XmlRpcClientConfigImpl; // Importa la clase para configurar las opciones del cliente XML-RPC, como la URL del servidor
-
-import java.net.URI;      // Importa la clase URI que representa un identificador uniforme de recursos, útil para definir la dirección del servidor
-import java.net.URL;   // Importa la clase URL que representa la dirección a la cual el cliente se conectará
-//import java.util.Arrays;    // Importa la clase Arrays para trabajar con arreglos, útil para pasar parámetros o manipular datos
-
+import org.apache.xmlrpc.client.XmlRpcClient;
+import org.apache.xmlrpc.client.XmlRpcClientConfigImpl;
+import java.net.URI;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class RPCClient {
-     public static void main(String[] args) {
+    public static void main(String[] args) {
         try {
-            
-            // Configurar la URL del servidor
             XmlRpcClientConfigImpl config = new XmlRpcClientConfigImpl();
-            URI uri = new URI("http://192.168.1.68:8080/");   // Valida la URI
-            config.setServerURL(uri.toURL());              // Convierte a URL
-            
-            // Crear cliente XML-RPC
+            URI uri = new URI("http://10.211.251.237:8080/");
+            config.setServerURL(uri.toURL());
+
             XmlRpcClient client = new XmlRpcClient();
             client.setConfig(config);
 
-            // Registrar un nuevo cliente y obtener su nombre único
             String nombreCliente = (String) client.execute("Contador.registrarCliente", new Object[]{});
-            System.out.println("Cliente registrado con nombre: " + nombreCliente);
+            System.out.println("Cliente registrado: " + nombreCliente);
 
-            // Crear registro para guardar los valores del contador
-            int[] registro_contador = new int[100];
+            int[] registroContador = new int[100];
             int indice = 0;
 
+            BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+            System.out.println("Enter = enviar petición | q = salir");
+
             while (true) {
+                System.out.print("> ");
+                String line = br.readLine();
+                if (line == null) break;
+                line = line.trim();
+                if (line.equalsIgnoreCase("q")) break;
+                if (!line.isEmpty()) {
+                    System.out.println("Presiona Enter sin texto para solicitar incremento.");
+                    continue;
+                }
+
                 try {
                     Object[] params = new Object[]{nombreCliente};
                     Integer resultado = (Integer) client.execute("Contador.incrementar", params);
 
-                    // Guardar valor en el registro
-                    if (indice < registro_contador.length) {
-                        registro_contador[indice++] = resultado;
+                    // Si el servidor ignora la petición (mismo turno)
+                    if (resultado == -1) {
+                        System.out.println("Servidor ignoró la petición por doble turno. Intenta nuevamente cuando otro cliente haya llamado.");
+                        continue; // no guardes ni muestres el -1
                     }
 
+                    if (indice < registroContador.length) registroContador[indice++] = resultado;
                     System.out.println(nombreCliente + " recibió contador: " + resultado);
 
-                    // Si el contador llegó a 100, detener el ciclo
                     if (resultado >= 100) {
                         System.out.println("Contador llegó a 100. Fin de comunicación.");
                         break;
                     }
-
-                    Thread.sleep(7000); // Espera
                 } catch (Exception e) {
-                    // Capturamos excepciones lanzadas por el servidor
                     String mensaje = e.getMessage();
-                    
                     if (mensaje != null && mensaje.contains("Petición ignorada")) {
-                        // Solo ignorar la petición, esperar antes de intentar de nuevo
-                        System.out.println("Servidor ignoró la petición por doble llamada consecutiva. Reintentando...");
-                        Thread.sleep(2000); // Espera breve antes de reintentar
-                        continue; // Saltar a la siguiente iteración
+                        System.out.println("Servidor ignoró la petición por doble turno. Intenta nuevamente cuando otro cliente haya llamado.");
+                        continue;
                     }
-
                     if (mensaje != null && mensaje.contains("Servidor dejará de aceptar peticiones")) {
-                        System.out.println("Servidor alcanzó límite de 100. Fin de comunicación.");
+                        System.out.println("Servidor alcanzó 100. Fin de comunicación.");
                     } else {
                         System.out.println("Error al comunicarse con el servidor: " + mensaje);
                     }
-
-                    break; // Salir del ciclo si hay error crítico
+                    break;
                 }
             }
 
-            // Imprimir los valores registrados al final
             System.out.println("\nValores recibidos por " + nombreCliente + ":");
-            for (int i = 0; i < indice; i++) {
-                System.out.print(registro_contador[i] + " ");
-            }
+            for (int i = 0; i < indice; i++) System.out.print(registroContador[i] + " ");
             System.out.println();
-
         } catch (Exception e) {
             System.err.println("Error cliente: " + e.getMessage());
         }
