@@ -24,7 +24,7 @@ public class RPCServer {
 
             // Monitorear para detener el servidor
             while (true) {
-                if (Contador.debeDetenerServidor()) {
+                if (Contador.DetenerServidor()) {
                     // Imprimir registro de todas las llamadas antes de detener
                     List<String> registro = Contador.obtenerRegistro();
                     System.out.println("\nRegistro de llamadas");
@@ -33,10 +33,14 @@ public class RPCServer {
                     }
                     System.out.println("\n");
 
-                    System.out.println("Servidor ya no aceptara mas llamadas.");
+                    System.out.println("Servidor dejará de aceptar peticiones");
                     break;
                 }
                 Thread.sleep(500);
+            }
+
+            while(true) {
+                
             }
 
         } catch (Exception e) {

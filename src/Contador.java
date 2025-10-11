@@ -14,6 +14,10 @@ public class Contador {
 
     private static final int LIMITE_CONTADOR = 10;
 
+    public Contador() {
+
+    }
+
     // Registrar un cliente (nuevo o reconectado)
     public synchronized String registrarCliente(String idCliente) {
         if (!contadoresClientes.containsKey(idCliente)) {
@@ -46,7 +50,7 @@ public class Contador {
             e.printStackTrace();
         }
 
-        // Evitar peticiones consecutivas del mismo cliente
+        //Evitar peticiones consecutivas del mismo cliente
         if (ultimoClienteMap.getOrDefault(cliente, false)) {
             System.out.println("Cliente " + cliente + " no puede hacer dos peticiones seguidas. Petición ignorada.");
             return -1;
@@ -84,6 +88,16 @@ public class Contador {
         return nuevoValor;
     }
 
+    // Método para recibir y mostrar listas de cualquier tipo
+    public synchronized int recibirlistas(Object[] historial, String cliente) {
+        System.out.println("Cliente " + cliente + " envió su historial de valores:");
+        for (Object val : historial) {
+            System.out.print(val + "\n");
+        }
+        System.out.println();
+        return -1;
+    }
+
     // Devolver todos los valores que ha recibido este cliente de manera historica
     public synchronized List<Integer> obtenerValoresCliente(String cliente) {
         return new ArrayList<>(valoresPorCliente.getOrDefault(cliente, new ArrayList<>()));
@@ -110,7 +124,11 @@ public class Contador {
         return contadoresClientes.getOrDefault(cliente, 0);
     }
 
-    public static boolean debeDetenerServidor() {
+    public boolean debeDetenerServidor() {
+        return detenerServidor;
+    }
+
+    public static boolean DetenerServidor() {
         return detenerServidor;
     }
 
